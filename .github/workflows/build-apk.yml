@@ -114,7 +114,7 @@ jobs:
           EOF
 
           curl -L --fail --retry 3 \
-            https://raw.githubusercontent.com/nobarsclubofficial/Website/main/assets/no-bars-club-logo.jpg \
+            https://nobarsclub.com/assets/no-bars-club-logo.jpg \
             -o /tmp/no-bars-club-logo.jpg
 
           mkdir -p android/app/src/main/res/mipmap-mdpi \
