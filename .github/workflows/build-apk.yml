@@ -113,9 +113,7 @@ jobs:
           </resources>
           EOF
 
-          curl -L --fail --retry 3 \
-            https://nobarsclub.com/assets/no-bars-club-logo.jpg \
-            -o /tmp/no-bars-club-logo.jpg
+          cp branding/app-icon.jpg /tmp/no-bars-club-logo.jpg
 
           mkdir -p android/app/src/main/res/mipmap-mdpi \
                    android/app/src/main/res/mipmap-hdpi \
