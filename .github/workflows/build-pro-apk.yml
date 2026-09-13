@@ -116,8 +116,7 @@ jobs:
           ms = main.read_text()
           import_anchor = "import 'screens/scanner_screen.dart';"
           pro_import = "import 'screens/no_bars_pro_screen.dart';"
-          if pro_import not in ms:
-              ms = ms.replace(import_anchor, import_anchor + "\n" + pro_import)
+          ms = ms.replace(import_anchor, pro_import)
           ms = ms.replace("title: 'MeshCore Open'", "title: 'NO BARS PRO'")
           ms = ms.replace("title: 'No Bars Connect Enhanced'", "title: 'NO BARS PRO'")
           ms = ms.replace(': const ScannerScreen(),', ': const NoBarsProScreen(),')
@@ -131,7 +130,7 @@ jobs:
           </resources>
           EOF
 
-          curl -L --fail --retry 3 https://nobarsclub.com/assets/no-bars-club-logo.jpg -o /tmp/no-bars-club-logo.jpg
+          cp branding/app-icon.jpg /tmp/no-bars-club-logo.jpg
 
           mkdir -p android/app/src/main/res/mipmap-mdpi \
                    android/app/src/main/res/mipmap-hdpi \
