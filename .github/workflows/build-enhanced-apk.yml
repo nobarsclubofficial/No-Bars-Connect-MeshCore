@@ -1,0 +1,205 @@
+name: Build No Bars Connect Enhanced APK
+
+on:
+  push:
+    branches:
+      - no-bars-enhanced
+    paths-ignore:
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-enhanced-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-enhanced-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties', 'android/app/build.gradle.kts', 'pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-enhanced-
+            ${{ runner.os }}-gradle-
+
+      - name: Install image tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
+
+      - name: Apply No Bars Enhanced branding and feature entry point
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # Brand user-facing product strings while preserving source/license attribution files.
+          for root in [Path('lib'), Path('android/app/src/main')]:
+              for p in root.rglob('*'):
+                  if not p.is_file() or p.suffix.lower() not in {'.dart', '.xml', '.arb', '.json', '.kt', '.java'}:
+                      continue
+                  try:
+                      s = p.read_text()
+                  except UnicodeDecodeError:
+                      continue
+                  s2 = s.replace('MeshCore Open', 'No Bars Connect Enhanced')
+                  s2 = s2.replace('Mesh Open', 'No Bars Connect Enhanced')
+                  if s2 != s:
+                      p.write_text(s2)
+
+          # Current No Bars Club website palette.
+          theme = Path('lib/theme/mesh_theme.dart')
+          s = theme.read_text()
+          pairs = [
+              ('MeshCore palette — high-contrast slate surfaces with sky-blue accents.', 'No Bars Club palette — dark surfaces with pink, blue and yellow accents.'),
+              ('0xFF0B1220', '0xFF090B10'),
+              ('0xFF0F172A', '0xFF121722'),
+              ('0xFF162033', '0xFF181F2C'),
+              ('0xFF1E293B', '0xFF1E2633'),
+              ('0xFF334155', '0xFF27364B'),
+              ('0xFF2A3850', '0xFF1E2633'),
+              ('0xFF3B4A61', '0xFF27364B'),
+              ('0xFF546376', '0xFFA8B3C7'),
+              ('0xFFF8FAFC', '0xFFF5F7FB'),
+              ('0xFFD5DEE9', '0xFFC1CAD8'),
+              ('0xFFAAB6C6', '0xFFA8B3C7'),
+              ('0xFF828FA3', '0xFF7F8CA1'),
+              ('0xFF0EA5E9', '0xFFFF1493'),
+              ('0xFF0284C7', '0xFF00A6FF'),
+              ('0x290EA5E9', '0x29FF1493'),
+              ('0x800EA5E9', '0x80FF1493'),
+              ('0xFFDE7FDB', '0xFFFFD400'),
+              ('0x1CDE7FDB', '0x1CFFD400'),
+              ('0x47DE7FDB', '0x47FFD400'),
+              ('0xFF0C4A6E', '0xFF121722'),
+              ('0xFF0369A1', '0xFF00A6FF'),
+              ('0xFFF0F9FF', '0xFFF5F7FB'),
+              ('0xFF2F6EA8', '0xFF00A6FF'),
+              ('0xFF2563EB', '0xFF00A6FF'),
+              ('0xFF7C3AED', '0xFFFF1493'),
+              ('0xFFF97316', '0xFFFFD400'),
+              ('0xFF0F766E', '0xFF00A6FF'),
+              ('0xFF38BDF8', '0xFF00A6FF'),
+          ]
+          for old, new in pairs:
+              s = s.replace(old, new)
+          theme.write_text(s)
+
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          m = manifest.read_text()
+          m = m.replace('android:label="MeshCore Open"', 'android:label="No Bars Connect Enhanced"')
+          m = m.replace('android:label="No Bars Connect"', 'android:label="No Bars Connect Enhanced"')
+          m = m.replace('android:icon="@drawable/no_bars_launcher"', 'android:icon="@mipmap/ic_launcher"')
+          manifest.write_text(m)
+
+          # Give Enhanced its own Android application ID so it can be installed
+          # next to the stable No Bars Connect APK instead of replacing it.
+          gradle = Path('android/app/build.gradle.kts')
+          g = gradle.read_text()
+          g = g.replace('applicationId = "com.meshcore.meshcore_open"', 'applicationId = "com.nobarsclub.connect.enhanced"')
+          gradle.write_text(g)
+
+          # Add the Enhanced hub to Settings without changing the stable branch.
+          settings = Path('lib/screens/settings_screen.dart')
+          ss = settings.read_text()
+          import_anchor = "import 'app_settings_screen.dart';"
+          enhanced_import = "import 'no_bars_enhanced_screen.dart';"
+          if enhanced_import not in ss:
+              ss = ss.replace(import_anchor, import_anchor + "\n" + enhanced_import)
+
+          card_anchor = "                // APP SETTINGS\n"
+          enhanced_card = '''                // NO BARS ENHANCED\n                const SectionHeader('NO BARS ENHANCED'),\n                MeshCard(\n                  onTap: () => Navigator.push(\n                    context,\n                    MaterialPageRoute(\n                      builder: (_) => const NoBarsEnhancedScreen(),\n                    ),\n                  ),\n                  child: _buildNavTileContent(\n                    context,\n                    icon: Icons.bolt,\n                    title: 'Enhanced tools & automation',\n                    subtitle: 'Reconnect, traffic, paths, alerts, battery, backup & more',\n                  ),\n                ),\n\n'''
+          if 'const NoBarsEnhancedScreen()' not in ss:
+              if card_anchor not in ss:
+                  raise SystemExit('Could not find Settings insertion anchor')
+              ss = ss.replace(card_anchor, enhanced_card + card_anchor)
+          settings.write_text(ss)
+          PY
+
+          cat > android/app/src/main/res/values/colors.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="ic_launcher_background">#090B10</color>
+          </resources>
+          EOF
+
+          curl -L --fail --retry 3 \
+            https://nobarsclub.com/assets/no-bars-club-logo.jpg \
+            -o /tmp/no-bars-club-logo.jpg
+
+          mkdir -p android/app/src/main/res/mipmap-mdpi \
+                   android/app/src/main/res/mipmap-hdpi \
+                   android/app/src/main/res/mipmap-xhdpi \
+                   android/app/src/main/res/mipmap-xxhdpi \
+                   android/app/src/main/res/mipmap-xxxhdpi
+
+          convert /tmp/no-bars-club-logo.jpg -thumbnail 48x48^   -gravity center -extent 48x48   android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+          convert /tmp/no-bars-club-logo.jpg -thumbnail 72x72^   -gravity center -extent 72x72   android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+          convert /tmp/no-bars-club-logo.jpg -thumbnail 96x96^   -gravity center -extent 96x96   android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          convert /tmp/no-bars-club-logo.jpg -thumbnail 144x144^ -gravity center -extent 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+          convert /tmp/no-bars-club-logo.jpg -thumbnail 192x192^ -gravity center -extent 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
+          cat > android/app/src/main/res/drawable/launch_background.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+              <item>
+                  <shape android:shape="rectangle">
+                      <solid android:color="#090B10" />
+                  </shape>
+              </item>
+              <item android:gravity="center">
+                  <bitmap android:gravity="center" android:src="@mipmap/ic_launcher" />
+              </item>
+          </layer-list>
+          EOF
+
+          cp android/app/src/main/res/drawable/launch_background.xml android/app/src/main/res/drawable-v21/launch_background.xml
+
+          if grep -RIn --exclude-dir=.git --include='*.dart' --include='*.arb' --include='*.xml' \
+             -E 'MeshCore Open|Mesh Open' lib android/app/src/main; then
+            echo 'Upstream product name still present in user-facing app resources.'
+            exit 1
+          fi
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Analyze enhanced additions
+        run: flutter analyze lib/screens/no_bars_enhanced_screen.dart lib/screens/settings_screen.dart
+
+      - name: Build Enhanced ARM64 release APK
+        run: flutter build apk --release --target-platform android-arm64 --no-pub --build-name 9.5.0-enhanced --build-number 17
+
+      - name: Prepare Enhanced artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/No-Bars-Connect-Enhanced-arm64-v8a.apk
+          cd dist
+          sha256sum No-Bars-Connect-Enhanced-arm64-v8a.apk > SHA256SUMS.txt
+          ls -lh
+
+      - name: Upload Enhanced Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: No-Bars-Connect-Enhanced-Android-ARM64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
