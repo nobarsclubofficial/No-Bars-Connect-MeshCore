@@ -50,7 +50,6 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          # Brand user-facing product strings while preserving source/license attribution files.
           for root in [Path('lib'), Path('android/app/src/main')]:
               for p in root.rglob('*'):
                   if not p.is_file() or p.suffix.lower() not in {'.dart', '.xml', '.arb', '.json', '.kt', '.java'}:
@@ -64,7 +63,6 @@ jobs:
                   if s2 != s:
                       p.write_text(s2)
 
-          # Current No Bars Club website palette.
           theme = Path('lib/theme/mesh_theme.dart')
           s = theme.read_text()
           pairs = [
@@ -109,14 +107,11 @@ jobs:
           m = m.replace('android:icon="@drawable/no_bars_launcher"', 'android:icon="@mipmap/ic_launcher"')
           manifest.write_text(m)
 
-          # Give Enhanced its own Android application ID so it can be installed
-          # next to the stable No Bars Connect APK instead of replacing it.
           gradle = Path('android/app/build.gradle.kts')
           g = gradle.read_text()
           g = g.replace('applicationId = "com.meshcore.meshcore_open"', 'applicationId = "com.nobarsclub.connect.enhanced"')
           gradle.write_text(g)
 
-          # Add the Enhanced hub to Settings without changing the stable branch.
           settings = Path('lib/screens/settings_screen.dart')
           ss = settings.read_text()
           import_anchor = "import 'app_settings_screen.dart';"
@@ -140,9 +135,7 @@ jobs:
           </resources>
           EOF
 
-          curl -L --fail --retry 3 \
-            https://nobarsclub.com/assets/no-bars-club-logo.jpg \
-            -o /tmp/no-bars-club-logo.jpg
+          cp branding/app-icon.jpg /tmp/no-bars-club-logo.jpg
 
           mkdir -p android/app/src/main/res/mipmap-mdpi \
                    android/app/src/main/res/mipmap-hdpi \
