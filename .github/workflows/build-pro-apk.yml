@@ -114,6 +114,9 @@ jobs:
 
           cp branding/app-icon-final.svg /tmp/no-bars-club-logo.svg
 
+          # Android 8+ adaptive icon XML was overriding the approved raster launcher art.
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+
           mkdir -p android/app/src/main/res/mipmap-mdpi \
                    android/app/src/main/res/mipmap-hdpi \
                    android/app/src/main/res/mipmap-xhdpi \
